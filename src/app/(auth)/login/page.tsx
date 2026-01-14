@@ -52,7 +52,7 @@ export default function LoginPage() {
             Iniciar Sesión
           </h2>
           <p className="text-slate-400 text-center mb-8">
-            Accede a tus combinaciones guardadas
+            Accede a tus combinaciones guardadas siempre que quieras
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
