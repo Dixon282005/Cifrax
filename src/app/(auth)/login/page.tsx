@@ -22,13 +22,25 @@ export default function LoginPage() {
       return;
     }
 
+    if (email === 'admin@cifrax.com') {
+      if (password === 'admin123') {
+        localStorage.setItem('cifrax_user', email);
+        localStorage.setItem('cifrax_role', 'admin');
+        router.push('/admin');
+        return;
+      } else {
+        setError('Contraseña de administrador incorrecta');
+        return;
+      }
+    }
+
     if (password.length < 6) {
       setError('La contraseña debe tener al menos 6 caracteres');
       return;
     }
 
-    // Simulación de autenticación (esto se reemplazará con Supabase)
     localStorage.setItem('cifrax_user', email);
+    localStorage.setItem('cifrax_role', 'user');
     router.push('/dashboard');
   };
 

@@ -25,6 +25,18 @@ export function AuthForm({ mode, onSuccess, onBack, onToggleMode }: AuthFormProp
       return;
     }
 
+    if (mode === 'login' && email === 'admin@cifrax.com') {
+      if (password === 'admin123') {
+        localStorage.setItem('cifrax_user', email);
+        localStorage.setItem('cifrax_role', 'admin');
+        onSuccess(email);
+        return;
+      } else {
+        setError('Contraseña de administrador incorrecta');
+        return;
+      }
+    }
+
     if (mode === 'register' && password !== confirmPassword) {
       setError('Las contraseñas no coinciden');
       return;
@@ -35,8 +47,8 @@ export function AuthForm({ mode, onSuccess, onBack, onToggleMode }: AuthFormProp
       return;
     }
 
-    // Simulación de autenticación (esto se reemplazará con Supabase)
     localStorage.setItem('cifrax_user', email);
+    localStorage.setItem('cifrax_role', 'user');
     onSuccess(email);
   };
 
