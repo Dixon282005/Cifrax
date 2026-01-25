@@ -1,49 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from "@/components/ui/table";
-import { 
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { 
-  Trash2, 
-  Search, 
-  ShieldAlert, 
-  EyeOff, 
-  FileText 
-} from "lucide-react";
-import { 
-  getAllGlobalCombinations, 
-  deleteCombinationAsAdmin, 
-  AdminCombination 
-} from "@/features/admin/services/localDataService";
+import { Trash2, Search, ShieldAlert, EyeOff, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { fetchGlobalCombinations, deleteCombinationAction } from "@/features/admin/actions/admin_actions";
+import { AdminCombination } from "@/features/admin/services/localDataService";
 
 export default function AdminCombinationsPage() {
   const [data, setData] = useState<AdminCombination[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [targetToDelete, setTargetToDelete] = useState<{email: string, id: string} | null>(null);
 
-  const loadData = () => {
-    const combinations = getAllGlobalCombinations();
+  const loadData = async () => {
+    const combinations = await fetchGlobalCombinations();
     setData(combinations);
   };
 
@@ -51,11 +26,11 @@ export default function AdminCombinationsPage() {
     loadData();
   }, []);
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (targetToDelete) {
-      const success = deleteCombinationAsAdmin(targetToDelete.email, targetToDelete.id);
+      const success = await deleteCombinationAction(targetToDelete.id);
       if (success) {
-        toast.success("Combinación eliminada por administración");
+        toast.success("Combinación eliminada correctamente");
         loadData();
       } else {
         toast.error("No se pudo eliminar");
@@ -112,7 +87,7 @@ export default function AdminCombinationsPage() {
               </TableRow>
             ) : (
               filteredData.map((item) => (
-                <TableRow key={item.id + item.userEmail} className="border-slate-800 hover:bg-slate-800/30">
+                <TableRow key={item.id} className="border-slate-800 hover:bg-slate-800/30">
                   <TableCell>
                     <div className="flex flex-col">
                       <span className="text-slate-200 font-medium">{item.userEmail}</span>
@@ -145,7 +120,6 @@ export default function AdminCombinationsPage() {
                     </div>
                   </TableCell>
                   
-                  {/* AQUÍ ESTÁ LA MAGIA DE LA PRIVACIDAD */}
                   <TableCell className="text-center">
                     <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-md bg-slate-900 border border-slate-800 text-slate-500 font-mono text-sm">
                       <EyeOff className="h-3 w-3" />
@@ -183,8 +157,6 @@ export default function AdminCombinationsPage() {
             <AlertDialogTitle className="text-white">Eliminar Combinación</AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
               ¿Estás seguro de eliminar este registro del usuario <span className="text-cyan-400">{targetToDelete?.email}</span>?
-              <br/><br/>
-              Esta acción es útil para moderar contenido inapropiado en nombres o notas, pero es irreversible.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
