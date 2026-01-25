@@ -4,63 +4,56 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-// 1. OBTENER (Mapeamos de tu BD a la UI)
-export async function getCombinations() {
+// Helper para conectar a Supabase (DRY - Don't Repeat Yourself)
+async function createClient() {
   const cookieStore = await cookies();
-  const supabase = createServerClient(
+  return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: { get: (name) => cookieStore.get(name)?.value } }
   );
+}
+
+// 1. OBTENER (Mapeamos de tu BD a la UI)
+export async function getCombinations() {
+  const supabase = await createClient();
 
   const { data } = await supabase
-    .from('combinaciones') // Tu tabla exacta
+    .from('combinaciones')
     .select('*')
     .order('created_at', { ascending: false });
 
   if (!data) return [];
 
-  // Transformamos los nombres de la BD (español) a tu Frontend (inglés)
   return data.map((c) => ({
     id: c.id.toString(),
-    name: c.titulo,           // BD: titulo -> UI: name
-    pairs: c.numeros,         // BD: numeros ([1,2,3]) -> UI: pairs
-    group: c.group_id?.toString(), // BD: group_id -> UI: group
-    notes: c.notas,           // BD: notas -> UI: notes
+    name: c.titulo,
+    pairs: c.numeros,
+    group: c.group_id?.toString(),
+    notes: c.notas,
     createdAt: c.created_at
   }));
 }
 
-
-
-
-// 2. CREAR (CON VALIDACIÓN DE NOMBRE DUPLICADO)
+// 2. CREAR (CON VALIDACIÓN DE DUPLICADOS Y FIX DE GRUPO)
 export async function createCombination(payload: {
   name: string,
   pairs: number[],
   groupId?: string,
   notes?: string
 }) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { get: (name) => cookieStore.get(name)?.value } }
-  );
-
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "No autorizado" };
 
-  // --- PASO 1: VALIDAR DUPLICADOS ---
-  // Buscamos si ya existe una combinación con ESE nombre y ESTE usuario
+  // --- VALIDAR DUPLICADOS ---
   const { data: existing } = await supabase
     .from('combinaciones')
     .select('id')
-    .eq('user_id', user.id) // Importante: Que sea del mismo usuario
-    .eq('titulo', payload.name) // Chequeamos el nombre exacto
-    .single(); // Solo necesitamos saber si hay UNO
+    .eq('user_id', user.id)
+    .eq('titulo', payload.name)
+    .single();
 
-  // Si 'existing' no es nulo, significa que ya existe
   if (existing) {
     return { 
       success: false, 
@@ -68,12 +61,17 @@ export async function createCombination(payload: {
     };
   }
 
-  // --- PASO 2: SI NO EXISTE, GUARDAMOS ---
+  // --- FIX DE LLAVE FORÁNEA (CRÍTICO) ---
+  // Si es "all", vacío, o no es número, mandamos NULL
+  const cleanGroupId = (payload.groupId === 'all' || !payload.groupId || isNaN(Number(payload.groupId))) 
+    ? null 
+    : Number(payload.groupId);
+
   const { error } = await supabase.from('combinaciones').insert({
     user_id: user.id,
     titulo: payload.name,
     numeros: payload.pairs,
-    group_id: payload.groupId === 'all' ? null : Number(payload.groupId),
+    group_id: cleanGroupId, // <--- Usamos el valor limpio
     notas: payload.notes
   });
 
@@ -83,17 +81,9 @@ export async function createCombination(payload: {
   return { success: true };
 }
 
-
-
 // 3. BORRAR
 export async function deleteCombinationAction(id: string) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { get: (name) => cookieStore.get(name)?.value } }
-  );
-
+  const supabase = await createClient();
   const { error } = await supabase.from('combinaciones').delete().eq('id', id);
   
   if (error) return { success: false, error: error.message };
@@ -101,8 +91,6 @@ export async function deleteCombinationAction(id: string) {
   revalidatePath('/dashboard');
   return { success: true };
 }
-
-// ... imports y funciones anteriores (get, create, delete) ...
 
 // 4. ACTUALIZAR (UPDATE)
 export async function updateCombination(payload: {
@@ -112,29 +100,25 @@ export async function updateCombination(payload: {
   groupId?: string,
   notes?: string
 }) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { cookies: { get: (name) => cookieStore.get(name)?.value } }
-  );
-
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false, error: "No autorizado" };
 
-  // Opcional: Validar duplicados si cambió el nombre (similar al create)
-  // Por ahora haremos el update directo para no complicar.
+  // --- FIX DE LLAVE FORÁNEA TAMBIÉN AQUÍ ---
+  const cleanGroupId = (payload.groupId === 'all' || !payload.groupId || isNaN(Number(payload.groupId))) 
+    ? null 
+    : Number(payload.groupId);
 
   const { error } = await supabase
     .from('combinaciones')
     .update({
       titulo: payload.name,
       numeros: payload.pairs,
-      group_id: payload.groupId === 'all' ? null : Number(payload.groupId),
+      group_id: cleanGroupId, // <--- Usamos el valor limpio
       notas: payload.notes
     })
-    .eq('id', payload.id)       // Buscamos por ID
-    .eq('user_id', user.id);    // Seguridad extra: que sea suya
+    .eq('id', payload.id)
+    .eq('user_id', user.id);
 
   if (error) return { success: false, error: error.message };
 
