@@ -1,47 +1,61 @@
+
+
 "use client";
 
-import { useState, useMemo } from 'react';
-// Asegúrate de que estas rutas sean correctas según tu estructura de carpetas
+import { useState } from 'react';
+// Importamos los tipos
+import { Group } from '@/features/groups/types';
+import { Combination } from '@/features/combinations/types';
+
+// Componentes UI
 import { DashboardHeader } from './components/DashboardHeader';
 import { DashboardStats } from './components/DashboardStats';
 import { ActionButtons } from './components/ActionButtons';
 
 // Componentes de otras Features
+
+// Componentes de Features
 import { GroupForm } from '../groups/components/GroupForm';
 import { GroupList } from '../groups/components/GroupList';
 import { CombinationForm } from '../combinations/components/CombinationForm';
 import { CombinationFilters } from '../combinations/components/CombinationFilters';
 import { CombinationsList } from '../combinations/components/CombinationsList';
-import { SortBy } from '../combinations/types';
 
-// Acciones del Servidor (Backend)
+// Acciones y Hooks
 import { createGroup, deleteGroup } from '../groups/actions/groups';
 import { signOutAction } from '@/features/auth/actions/Auth';
+import { useCombinations } from '@/features/combinations/hooks/useCombinations'; // <--- EL NUEVO HOOK
 
 interface DashboardProps {
   userEmail: string;
-  initialGroups: any[]; // Recibimos los grupos de la DB
+  initialGroups: Group[];        // Tipado fuerte
+  initialCombinations: Combination[]; // Tipado fuerte
 }
 
-export function Dashboard({ userEmail, initialGroups }: DashboardProps) {
-  // --- ESTADOS UI ---
+export function Dashboard({ userEmail, initialGroups, initialCombinations }: DashboardProps) {
+  // --- ESTADOS UI (Ventanas modales, etc) ---
   const [isAddingNew, setIsAddingNew] = useState(false);
   const [isAddingGroup, setIsAddingGroup] = useState(false);
   const [randomPairs, setRandomPairs] = useState<[number, number, number] | undefined>();
 
-  // --- ESTADOS DE COMBINACIONES (LOCAL POR AHORA) ---
-  const [combinations, setCombinations] = useState<any[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterGroup, setFilterGroup] = useState('all');
-  const [sortBy, setSortBy] = useState<SortBy>('date');
+  // --- HOOK PRINCIPAL DE COMBINACIONES (El cerebro conectado a Supabase) ---
+  const {
+    combinations,         // Data cruda (para stats)
+    filteredCombinations, // Data filtrada (para la lista)
+    addCombination,       // Función que guarda en BD
+    deleteCombination,    // Función que borra en BD
+    // editCombination,   // (Descomenta si tu lista tiene botón de editar)
+    searchTerm, setSearchTerm,
+    filterGroup, setFilterGroup,
+    sortBy, setSortBy
+  } = useCombinations(initialCombinations);
 
-  // --- LÓGICA DE GRUPOS (CONECTADA AL BACKEND) ---
-  
+  // --- LÓGICA DE GRUPOS ---
   const handleAddGroup = async (name: string, color: string) => {
     const result = await createGroup(name, color);
     if (result.success) {
       setIsAddingGroup(false);
-      // La página se recargará sola mostrando el nuevo grupo
+      // Next.js recargará la data automáticamente gracias a revalidatePath
     } else {
       alert("Error: " + result.error);
     }
@@ -50,30 +64,23 @@ export function Dashboard({ userEmail, initialGroups }: DashboardProps) {
   const handleDeleteGroup = async (groupId: string) => {
     if (confirm("¿Estás seguro de eliminar este grupo?")) {
       await deleteGroup(Number(groupId));
-      // También limpiamos las combinaciones locales asociadas (opcional)
-      setCombinations(prev => prev.map(c => 
-        c.group === groupId ? { ...c, group: undefined } : c
-      ));
+      // No necesitamos limpiar combinaciones locales manualmente, 
+      // la base de datos y el revalidatePath se encargan.
     }
   };
 
-  // --- LÓGICA DE COMBINACIONES (LOCAL) ---
+  // --- LÓGICA DE COMBINACIONES (Ahora usa el Hook) ---
 
-  const handleAddCombination = (
+  const handleSaveCombination = async (
     name: string,
     pairs: [number, number, number],
     group: string,
     notes: string
   ) => {
-    const newCombo = {
-      id: Date.now().toString(), // ID temporal
-      name,
-      pairs,
-      group,
-      notes,
-      createdAt: new Date().toISOString()
-    };
-    setCombinations([newCombo, ...combinations]);
+    // 1. Llamamos al hook (que llama al server action)
+    await addCombination(name, pairs, group, notes);
+    
+    // 2. Cerramos el formulario y limpiamos
     setIsAddingNew(false);
     setRandomPairs(undefined);
   };
@@ -92,32 +99,8 @@ export function Dashboard({ userEmail, initialGroups }: DashboardProps) {
     setRandomPairs(undefined);
   };
 
-  // --- FILTROS Y BÚSQUEDA (Reemplaza al hook useCombinations) ---
-  
-  const filteredCombinations = useMemo(() => {
-    return combinations
-      .filter(combo => {
-        const matchesSearch = combo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            combo.pairs.join(' ').includes(searchTerm);
-        const matchesGroup = filterGroup === 'all' || combo.group === filterGroup;
-        return matchesSearch && matchesGroup;
-      })
-      .sort((a, b) => {
-        if (sortBy === 'date' || sortBy === 'date-desc') {
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        }
-        if (sortBy === 'date-asc') {
-          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
-        }
-        if (sortBy === 'name') {
-          return a.name.localeCompare(b.name);
-        }
-        return 0;
-      });
-  }, [combinations, searchTerm, filterGroup, sortBy]);
-
   // --- ESTADÍSTICAS ---
-  
+  // Calculamos usando la data real "combinations" que viene del hook
   const combinationCounts = combinations.reduce((acc, c) => {
     if (c.group) acc[c.group] = (acc[c.group] || 0) + 1;
     return acc;
@@ -128,7 +111,6 @@ export function Dashboard({ userEmail, initialGroups }: DashboardProps) {
     : null;
 
   // --- RENDER ---
-
   return (
     <div className="min-h-screen bg-slate-950">
       <DashboardHeader 
@@ -152,7 +134,7 @@ export function Dashboard({ userEmail, initialGroups }: DashboardProps) {
           onGenerateRandom={handleGenerateRandom}
         />
 
-        {/* Formulario de Grupos (CONECTADO) */}
+        {/* Formulario de Grupos */}
         {isAddingGroup && (
           <GroupForm
             onSave={handleAddGroup}
@@ -160,24 +142,24 @@ export function Dashboard({ userEmail, initialGroups }: DashboardProps) {
           />
         )}
 
-        {/* Formulario de Combinaciones (LOCAL) */}
+        {/* Formulario de Combinaciones */}
         {isAddingNew && (
           <CombinationForm
-            groups={initialGroups} // Usamos los grupos reales de la DB
-            onSave={handleAddCombination}
+            groups={initialGroups}
+            onSave={handleSaveCombination} // <--- Usamos la nueva función conectada
             onCancel={handleCancelForm}
             initialPairs={randomPairs}
           />
         )}
 
-        {/* Lista de Grupos (CONECTADO) */}
+        {/* Lista de Grupos */}
         <GroupList
-          groups={initialGroups} // Usamos los grupos reales de la DB
+          groups={initialGroups}
           combinationCounts={combinationCounts}
           onDeleteGroup={handleDeleteGroup}
         />
 
-        {/* Filtros */}
+        {/* Filtros (Conectados al Hook) */}
         <CombinationFilters
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
@@ -203,13 +185,10 @@ export function Dashboard({ userEmail, initialGroups }: DashboardProps) {
           </h2>
           
           <CombinationsList
-            combinations={filteredCombinations}
+            combinations={filteredCombinations} // <--- Data filtrada del hook
             groups={initialGroups}
-            onDelete={(id) => {
-                // Borrado local temporal
-                setCombinations(prev => prev.filter(c => c.id !== id));
-            }}
-            // Helper para encontrar el grupo por ID
+            onDelete={deleteCombination} // <--- Acción del servidor
+            // Helper para encontrar el grupo por ID (para mostrar el color)
             getGroupById={(id) => initialGroups.find(g => String(g.id) === String(id))}
             totalCombinations={combinations.length}
           />

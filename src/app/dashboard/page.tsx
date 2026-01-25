@@ -1,13 +1,9 @@
-'use server';
-
 import { redirect } from 'next/navigation';
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { Dashboard } from '@/features/dashboard/Dashboard';
 import { getGroups } from '@/features/groups/actions/groups';
-
-// NOTA: Haremos lo mismo para 'combinations' en el siguiente paso,
-// por ahora pasaré un array vacío para que no de error.
+import { getCombinations } from '@/features/combinations/actions/combinations'; // <--- 1. IMPORTAR ESTO
 
 export default async function DashboardPage() {
   const cookieStore = await cookies();
@@ -22,14 +18,18 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // CARGA DE DATOS REALES DEL SERVIDOR
-  // Ejecutamos la función que creamos en el paso 1
-  const groupsData = await getGroups();
+  // --- CARGA DE DATOS REALES EN PARALELO ---
+  // 2. Traemos grupos y combinaciones al mismo tiempo
+  const [groupsData, combinationsData] = await Promise.all([
+    getGroups(),
+    getCombinations()
+  ]);
 
   return (
     <Dashboard 
       userEmail={user.email || ''} 
-      initialGroups={groupsData} // Pasamos los grupos reales
+      initialGroups={groupsData}
+      initialCombinations={combinationsData} // <--- 3. PASAR LA DATA REAL
     />
   );
 }
