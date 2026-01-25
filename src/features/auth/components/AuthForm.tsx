@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation'; 
 import { Mail, KeyRound, Loader2 } from 'lucide-react';
 import { Button } from '@/components/shared/Button'; 
-import { handleAuth } from '../actions/Auth'; // Importamos el Action (El Cerebro)
+import { handleAuth } from '../actions/Auth'; // El Cerebro (Server Action)
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -27,11 +27,11 @@ export function AuthForm({ mode }: AuthFormProps) {
     formData.append('password', password);
 
     try {
-      // LLAMADA AL SERVIDOR
+      // 1. LLAMADA AL SERVIDOR
       const result = await handleAuth(formData, mode);
 
       if (result.success) {
-        // Caso 1: Registro que requiere confirmación de email
+        // Caso 1: Registro que requiere confirmación de email (si configuraste eso en Supabase)
         if (mode === 'register' && !result.user) {
            alert(result.message || "¡Cuenta creada! Revisa tu correo.");
            setLoading(false);
@@ -46,7 +46,8 @@ export function AuthForm({ mode }: AuthFormProps) {
         router.refresh(); 
         router.push(ruta);
       } else {
-        // Manejo de errores devueltos por el servidor
+        // 2. AQUÍ CAPTURAMOS EL ERROR DE DUPLICADO
+        // El servidor nos dijo: { success: false, error: "Este correo ya está registrado..." }
         setError(result.error as string);
         setLoading(false);
       }
@@ -104,9 +105,9 @@ export function AuthForm({ mode }: AuthFormProps) {
           </div>
         </div>
 
-        {/* Mensaje de Error */}
+        {/* Mensaje de Error (ROJO) */}
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm flex items-center justify-center">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm flex items-center justify-center animate-in fade-in slide-in-from-top-2">
             {error}
           </div>
         )}

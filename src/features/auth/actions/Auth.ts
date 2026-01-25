@@ -5,9 +5,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 // --- FUNCIÓN HELPER INTERNA ---
-// CORRECCIÓN: Ahora es 'async' para poder esperar a las cookies
 const createClient = async () => {
-  // 1. AWAIT AQUÍ: Esperamos a que Next.js nos dé las cookies
   const cookieStore = await cookies();
 
   return createServerClient(
@@ -41,9 +39,8 @@ export async function handleAuth(formData: FormData, mode: 'login' | 'register')
   const password = formData.get("password") as string;
   
   if (!email || !password) return { success: false, error: "Campos obligatorios" };
-  if (password.length < 8) return { success: false, error: "Mínimo 8 caracteres" };
+  if (password.length < 6) return { success: false, error: "Mínimo 6 caracteres" };
 
-  // 2. AWAIT AQUÍ TAMBIÉN: Como createClient ahora es async, debemos esperarla
   const supabase = await createClient();
 
   let authResult;
@@ -51,6 +48,7 @@ export async function handleAuth(formData: FormData, mode: 'login' | 'register')
   if (mode === 'login') {
     authResult = await supabase.auth.signInWithPassword({ email, password });
   } else {
+    // --- MODO REGISTRO ---
     authResult = await supabase.auth.signUp({ 
       email, 
       password,
@@ -58,8 +56,15 @@ export async function handleAuth(formData: FormData, mode: 'login' | 'register')
         emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
       }
     });
+
+    // --- VALIDACIÓN DE DUPLICADOS (NUEVO) ---
+    // Si Supabase devuelve un usuario pero "identities" está vacío, el usuario YA existe.
+    if (authResult.data.user && authResult.data.user.identities && authResult.data.user.identities.length === 0) {
+      return { success: false, error: "Este correo ya está registrado. Por favor inicia sesión." };
+    }
   }
 
+  // Errores generales de Supabase (contraseña débil, error de red, etc)
   if (authResult.error) return { success: false, error: authResult.error.message };
 
   const user = authResult.data.user;
@@ -72,7 +77,6 @@ export async function handleAuth(formData: FormData, mode: 'login' | 'register')
 
 // --- ACCIÓN DE SALIR ---
 export async function signOutAction() {
-  // 3. AWAIT AQUÍ TAMBIÉN
   const supabase = await createClient();
   await supabase.auth.signOut();
   redirect("/login");
