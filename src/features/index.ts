@@ -17,11 +17,11 @@ export { CombinationCard } from './combinations/components/CombinationCard';
 export { CombinationsList } from './combinations/components/CombinationsList';
 export { CombinationFilters } from './combinations/components/CombinationFilters';
 export { useCombinations } from './combinations/hooks/useCombinations';
-export type { Combination, SortBy } from './combinations/types';
+
 
 // Groups Feature
 export { GroupForm } from './groups/components/GroupForm';
 export { GroupList } from './groups/components/GroupList';
 
-export type { Group } from './groups/types';
-export { GROUP_COLORS } from './groups/types';
+export type { Group } from '@/types/database';
+

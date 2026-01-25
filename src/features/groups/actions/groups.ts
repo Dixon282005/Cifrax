@@ -4,7 +4,6 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-// Helper para crear cliente (mismo que en Auth)
 async function createClient() {
   const cookieStore = await cookies();
   return createServerClient(
@@ -30,11 +29,16 @@ export async function getGroups() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('grupos')
     .select('*')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error("Error al obtener grupos:", error.message);
+    return [];
+  }
 
   return data || [];
 }
@@ -43,31 +47,48 @@ export async function getGroups() {
 export async function createGroup(name: string, color: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
+  
   if (!user) return { success: false, error: "No autorizado" };
 
+  // Limpiamos los datos antes de enviar
+  const cleanName = name.trim();
+  if (!cleanName) return { success: false, error: "El nombre es obligatorio" };
+
   const { error } = await supabase.from('grupos').insert({
-    nombre: name,
+    nombre: cleanName,
     color: color,
     user_id: user.id
   });
 
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    console.error("Error al crear grupo:", error.message);
+    return { success: false, error: error.message };
+  }
   
-  // ¡Truco de Magia! Esto recarga los datos en la pantalla automáticamente
   revalidatePath('/dashboard'); 
   return { success: true };
 }
 
 // --- BORRAR GRUPO ---
-export async function deleteGroup(groupId: number) {
+export async function deleteGroup(groupId: number | string) {
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
   
+  if (!user) return { success: false, error: "No autorizado" };
+
+  // Convertimos a número por si viene como string
+  const idToDelete = typeof groupId === 'string' ? parseInt(groupId, 10) : groupId;
+
   const { error } = await supabase
     .from('grupos')
     .delete()
-    .eq('id', groupId);
+    .eq('id', idToDelete)
+    .eq('user_id', user.id); // Seguridad extra: que sea su propio grupo
 
-  if (error) return { success: false, error: error.message };
+  if (error) {
+    console.error("Error al borrar grupo:", error.message);
+    return { success: false, error: error.message };
+  }
 
   revalidatePath('/dashboard');
   return { success: true };
