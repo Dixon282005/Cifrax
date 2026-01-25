@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation'; // Ojo: next/navigation, no next/router
+import { useRouter } from 'next/navigation'; 
 import { Mail, KeyRound, Loader2 } from 'lucide-react';
-import { Button } from '@/components/shared/Button'; // Tu botón reutilizable
-// AQUÍ IMPORTAMOS EL CEREBRO (EL ACTION)
-import { handleAuth } from '../actions/Auth'; 
+import { Button } from '@/components/shared/Button'; 
+import { handleAuth } from '../actions/Auth'; // Importamos el Action (El Cerebro)
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -27,62 +26,77 @@ export function AuthForm({ mode }: AuthFormProps) {
     formData.append('email', email);
     formData.append('password', password);
 
-    // LLAMAMOS AL ACTION (EL CEREBRO)
-    const result = await handleAuth(formData, mode);
+    try {
+      // LLAMADA AL SERVIDOR
+      const result = await handleAuth(formData, mode);
 
-    if (result.success) {
-      if (mode === 'register' && !result.user) {
-         alert("¡Cuenta creada! Revisa tu correo.");
-         setLoading(false);
+      if (result.success) {
+        // Caso 1: Registro que requiere confirmación de email
+        if (mode === 'register' && !result.user) {
+           alert(result.message || "¡Cuenta creada! Revisa tu correo.");
+           setLoading(false);
+           return;
+        }
+
+        // Caso 2: Login exitoso o Registro directo
+        // Redirigimos según el rol que nos devolvió el servidor
+        const ruta = result.role === 'admin' ? '/admin/dashboard' : '/dashboard';
+        
+        // Refrescamos para asegurar que el router vea las nuevas cookies
+        router.refresh(); 
+        router.push(ruta);
       } else {
-         // Si es login, redirigimos
-         const ruta = result.role === 'admin' ? '/admin/dashboard' : '/dashboard';
-         router.push(ruta);
-         router.refresh(); 
+        // Manejo de errores devueltos por el servidor
+        setError(result.error as string);
+        setLoading(false);
       }
-    } else {
-      setError(result.error as string);
+    } catch (err) {
+      // Error inesperado (ej. fallo de red)
+      setError("Ocurrió un error inesperado. Intenta de nuevo.");
       setLoading(false);
     }
   };
 
-  // --- AQUÍ EMPIEZA TU DISEÑO VISUAL ---
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
+    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-xl">
       <div className="text-center mb-8">
         <h2 className="text-white text-3xl font-bold mb-2">
           {mode === 'login' ? 'Iniciar Sesión' : 'Crear Cuenta'}
         </h2>
-        <p className="text-slate-400">
-          {mode === 'login' ? 'Bienvenido a Cifrax' : 'Únete a la plataforma'}
+        <p className="text-slate-400 text-sm">
+          {mode === 'login' 
+            ? 'Bienvenido de nuevo a Cifrax' 
+            : 'Únete a la plataforma para gestionar tus combinaciones'}
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Campo Email */}
         <div>
-          <label className="block text-slate-300 mb-2">Correo</label>
+          <label className="block text-slate-300 mb-2 text-sm font-medium">Correo Electrónico</label>
           <div className="relative">
             <Mail className="size-5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
-              placeholder="tu@email.com"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+              placeholder="ejemplo@cifrax.com"
               required
             />
           </div>
         </div>
 
+        {/* Campo Password */}
         <div>
-          <label className="block text-slate-300 mb-2">Contraseña</label>
+          <label className="block text-slate-300 mb-2 text-sm font-medium">Contraseña</label>
           <div className="relative">
             <KeyRound className="size-5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
+              className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
               placeholder="Mínimo 8 caracteres"
               required
               minLength={8}
@@ -90,24 +104,34 @@ export function AuthForm({ mode }: AuthFormProps) {
           </div>
         </div>
 
+        {/* Mensaje de Error */}
         {error && (
-          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm">
+          <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm flex items-center justify-center">
             {error}
           </div>
         )}
 
+        {/* Botón de Acción */}
         <Button type="submit" variant="primary" fullWidth disabled={loading}>
-          {loading ? <Loader2 className="animate-spin size-4 mx-auto" /> : (mode === 'login' ? 'Entrar' : 'Registrarse')}
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <Loader2 className="animate-spin size-4" />
+              <span>Procesando...</span>
+            </div>
+          ) : (
+            mode === 'login' ? 'Entrar' : 'Registrarse'
+          )}
         </Button>
       </form>
 
+      {/* Toggle entre Login/Registro */}
       <div className="mt-6 text-center">
         <button
           onClick={() => router.push(mode === 'login' ? '/register' : '/login')}
-          className="text-slate-400 hover:text-cyan-400 transition-colors text-sm"
+          className="text-slate-400 hover:text-cyan-400 transition-colors text-sm underline-offset-4 hover:underline"
         >
           {mode === 'login' 
-            ? '¿No tienes cuenta? Regístrate' 
+            ? '¿No tienes cuenta? Regístrate gratis' 
             : '¿Ya tienes cuenta? Inicia sesión'}
         </button>
       </div>
