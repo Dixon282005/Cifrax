@@ -7,4 +7,4 @@ export interface Combination {
   notes?: string;
 }
 
-export type SortBy = 'date' | 'name';
+export type SortBy = 'date' | 'date-desc' | 'date-asc' | 'name';
