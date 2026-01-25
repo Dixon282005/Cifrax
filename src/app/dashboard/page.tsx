@@ -18,8 +18,6 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  // --- CARGA DE DATOS REALES EN PARALELO ---
-  // 2. Traemos grupos y combinaciones al mismo tiempo
   const [groupsData, combinationsData] = await Promise.all([
     getGroups(),
     getCombinations()
@@ -29,7 +27,7 @@ export default async function DashboardPage() {
     <Dashboard 
       userEmail={user.email || ''} 
       initialGroups={groupsData}
-      initialCombinations={combinationsData} // <--- 3. PASAR LA DATA REAL
+      initialCombinations={combinationsData} 
     />
   );
 }

@@ -80,3 +80,20 @@ export async function deleteCombinationAction(id: string): Promise<boolean> {
     .eq('id', id);
   return !error;
 }
+
+export async function getSystemHealth() {
+  const start = Date.now();
+  // Consulta ligera para probar conexión
+  const { count, error } = await supabaseAdmin
+    .from('combinaciones') // Asegúrate de que esta tabla exista
+    .select('*', { count: 'exact', head: true });
+
+  const latency = Date.now() - start;
+
+  return {
+    isConnected: !error,
+    latency: latency,
+    totalRecords: count || 0,
+    error: error?.message
+  };
+}

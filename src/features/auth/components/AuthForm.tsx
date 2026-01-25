@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation'; 
 import { Mail, KeyRound, Loader2 } from 'lucide-react';
 import { Button } from '@/components/shared/Button'; 
-import { handleAuth } from '../actions/Auth'; // El Cerebro (Server Action)
+import { handleAuth } from '../actions/Auth';
 
 interface AuthFormProps {
   mode: 'login' | 'register';
@@ -22,37 +22,45 @@ export function AuthForm({ mode }: AuthFormProps) {
     setError('');
     setLoading(true);
 
+    const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+    const adminPass = process.env.NEXT_PUBLIC_ADMIN_PASSWORD;
+
+    if (mode === 'login' && email === adminEmail) {
+      if (password === adminPass) {
+        localStorage.setItem('cifrax_user', email);
+        localStorage.setItem('cifrax_role', 'admin');
+        router.push('/admin'); 
+        return;
+      } else {
+        setError('Contraseña de administrador incorrecta');
+        setLoading(false);
+        return;
+      }
+    }
+
     const formData = new FormData();
     formData.append('email', email);
     formData.append('password', password);
 
     try {
-      // 1. LLAMADA AL SERVIDOR
       const result = await handleAuth(formData, mode);
 
       if (result.success) {
-        // Caso 1: Registro que requiere confirmación de email (si configuraste eso en Supabase)
         if (mode === 'register' && !result.user) {
            alert(result.message || "¡Cuenta creada! Revisa tu correo.");
            setLoading(false);
            return;
         }
 
-        // Caso 2: Login exitoso o Registro directo
-        // Redirigimos según el rol que nos devolvió el servidor
-        const ruta = result.role === 'admin' ? '/admin/dashboard' : '/dashboard';
+        localStorage.removeItem('cifrax_role'); 
         
-        // Refrescamos para asegurar que el router vea las nuevas cookies
         router.refresh(); 
-        router.push(ruta);
+        router.push('/dashboard');
       } else {
-        // 2. AQUÍ CAPTURAMOS EL ERROR DE DUPLICADO
-        // El servidor nos dijo: { success: false, error: "Este correo ya está registrado..." }
         setError(result.error as string);
         setLoading(false);
       }
     } catch (err) {
-      // Error inesperado (ej. fallo de red)
       setError("Ocurrió un error inesperado. Intenta de nuevo.");
       setLoading(false);
     }
@@ -72,7 +80,6 @@ export function AuthForm({ mode }: AuthFormProps) {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Campo Email */}
         <div>
           <label className="block text-slate-300 mb-2 text-sm font-medium">Correo Electrónico</label>
           <div className="relative">
@@ -88,7 +95,6 @@ export function AuthForm({ mode }: AuthFormProps) {
           </div>
         </div>
 
-        {/* Campo Password */}
         <div>
           <label className="block text-slate-300 mb-2 text-sm font-medium">Contraseña</label>
           <div className="relative">
@@ -105,14 +111,12 @@ export function AuthForm({ mode }: AuthFormProps) {
           </div>
         </div>
 
-        {/* Mensaje de Error (ROJO) */}
         {error && (
           <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400 text-sm flex items-center justify-center animate-in fade-in slide-in-from-top-2">
             {error}
           </div>
         )}
 
-        {/* Botón de Acción */}
         <Button type="submit" variant="primary" fullWidth disabled={loading}>
           {loading ? (
             <div className="flex items-center gap-2">
@@ -125,7 +129,6 @@ export function AuthForm({ mode }: AuthFormProps) {
         </Button>
       </form>
 
-      {/* Toggle entre Login/Registro */}
       <div className="mt-6 text-center">
         <button
           onClick={() => router.push(mode === 'login' ? '/register' : '/login')}
