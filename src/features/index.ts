@@ -3,8 +3,7 @@
  * Facilita los imports en toda la aplicación
  */
 
-// Auth Feature
-export { AuthForm } from './auth/AuthForm';
+
 
 // Landing Feature
 export { Landing } from './landing/Landing';
