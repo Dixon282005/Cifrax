@@ -22,6 +22,6 @@ export type { Combination, SortBy } from './combinations/types';
 // Groups Feature
 export { GroupForm } from './groups/components/GroupForm';
 export { GroupList } from './groups/components/GroupList';
-export { useGroups } from './groups/hooks/useGroups';
+
 export type { Group } from './groups/types';
 export { GROUP_COLORS } from './groups/types';
