@@ -1,41 +1,35 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { redirect } from 'next/navigation';
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { Dashboard } from '@/features/dashboard/Dashboard';
+import { getGroups } from '@/features/groups/actions/groups';
+import { getCombinations } from '@/features/combinations/actions/combinations'; // <--- 1. IMPORTAR ESTO
 
-export default function DashboardPage() {
-  const router = useRouter();
-  const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Verificar si el usuario está autenticado
-    const email = localStorage.getItem('cifrax_user');
-    if (!email) {
-      router.push('/login');
-    } else {
-      setUserEmail(email);
-      setIsLoading(false);
+export default async function DashboardPage() {
+  const cookieStore = await cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: { get(name: string) { return cookieStore.get(name)?.value; } }
     }
-  }, [router]);
+  );
 
-  const handleLogout = () => {
-    localStorage.removeItem('cifrax_user');
-    router.push('/');
-  };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect('/login');
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="text-white text-xl">Cargando...</div>
-      </div>
-    );
-  }
+  // --- CARGA DE DATOS REALES EN PARALELO ---
+  // 2. Traemos grupos y combinaciones al mismo tiempo
+  const [groupsData, combinationsData] = await Promise.all([
+    getGroups(),
+    getCombinations()
+  ]);
 
-  if (!userEmail) {
-    return null;
-  }
-
-  return <Dashboard userEmail={userEmail} onLogout={handleLogout} />;
+  return (
+    <Dashboard 
+      userEmail={user.email || ''} 
+      initialGroups={groupsData}
+      initialCombinations={combinationsData} // <--- 3. PASAR LA DATA REAL
+    />
+  );
 }

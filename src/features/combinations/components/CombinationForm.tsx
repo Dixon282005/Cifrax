@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Save, X, Shuffle } from 'lucide-react';
-import { Group } from '../../groups/types';
+// CORRECCIÓN 1: Usamos el tipo global para que reconozca 'nombre'
+import { Group } from '@/types/database';
 import { Button } from '../../../components/shared/Button';
 
 interface CombinationFormProps {
@@ -14,25 +15,31 @@ export function CombinationForm({ groups, onSave, onCancel, initialPairs }: Comb
   const [newName, setNewName] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [newGroup, setNewGroup] = useState('');
-  const [newPairs, setNewPairs] = useState<[number, number, number]>(
-    initialPairs || [0, 0, 0]
+  
+  // Usamos strings internamente para permitir borrar el campo sin que se ponga un 0 automático molesto
+  const [pairInputs, setPairInputs] = useState<[string, string, string]>(
+    initialPairs ? [String(initialPairs[0]), String(initialPairs[1]), String(initialPairs[2])] : ['0', '0', '0']
   );
 
-  const updatePair = (valueIndex: number, value: string) => {
-    const num = parseInt(value) || 0;
-    const clampedNum = Math.max(0, Math.min(99, num));
-    const newPairsCopy = [...newPairs] as [number, number, number];
-    newPairsCopy[valueIndex] = clampedNum;
-    setNewPairs(newPairsCopy);
+  const updatePair = (index: number, value: string) => {
+    // Permitir solo números y vacío
+    if (!/^\d*$/.test(value)) return;
+    
+    // Limitar a 2 caracteres
+    if (value.length > 2) return;
+
+    const newInputs = [...pairInputs] as [string, string, string];
+    newInputs[index] = value;
+    setPairInputs(newInputs);
   };
 
   const generateRandomCombination = () => {
-    const randomPairs: [number, number, number] = [
-      Math.floor(Math.random() * 100),
-      Math.floor(Math.random() * 100),
-      Math.floor(Math.random() * 100)
+    const randomPairs: [string, string, string] = [
+      Math.floor(Math.random() * 100).toString(),
+      Math.floor(Math.random() * 100).toString(),
+      Math.floor(Math.random() * 100).toString()
     ];
-    setNewPairs(randomPairs);
+    setPairInputs(randomPairs);
   };
 
   const handleSubmit = () => {
@@ -40,7 +47,15 @@ export function CombinationForm({ groups, onSave, onCancel, initialPairs }: Comb
       alert('Por favor ingresa un nombre para la combinación');
       return;
     }
-    onSave(newName, newPairs, newGroup, newNotes);
+
+    // Convertimos los strings a números al guardar
+    const finalPairs: [number, number, number] = [
+      parseInt(pairInputs[0]) || 0,
+      parseInt(pairInputs[1]) || 0,
+      parseInt(pairInputs[2]) || 0
+    ];
+
+    onSave(newName, finalPairs, newGroup, newNotes);
   };
 
   return (
@@ -76,12 +91,13 @@ export function CombinationForm({ groups, onSave, onCancel, initialPairs }: Comb
           <select
             value={newGroup}
             onChange={(e) => setNewGroup(e.target.value)}
-            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyan-500 transition-colors text-sm sm:text-base"
+            className="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-cyan-500 transition-colors text-sm sm:text-base appearance-none"
           >
             <option value="">Sin grupo</option>
             {groups.map((group) => (
               <option key={group.id} value={group.id}>
-                {group.name}
+                {/* CORRECCIÓN CRÍTICA: Cambiado .name por .nombre */}
+                {group.nombre}
               </option>
             ))}
           </select>
@@ -115,18 +131,18 @@ export function CombinationForm({ groups, onSave, onCancel, initialPairs }: Comb
           </button>
         </div>
         <div className="grid grid-cols-3 gap-3">
-          {[0, 1, 2].map((valueIndex) => (
-            <div key={valueIndex}>
+          {[0, 1, 2].map((index) => (
+            <div key={index}>
               <label className="block text-slate-400 text-xs sm:text-sm mb-2">
-                Número {valueIndex + 1}
+                Número {index + 1}
               </label>
               <input
-                type="number"
-                min="0"
-                max="99"
-                value={newPairs[valueIndex]}
-                onChange={(e) => updatePair(valueIndex, e.target.value)}
-                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-3 text-white text-center focus:outline-none focus:border-cyan-500 transition-colors text-sm sm:text-base"
+                type="text" 
+                inputMode="numeric"
+                value={pairInputs[index]}
+                onChange={(e) => updatePair(index, e.target.value)}
+                className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-3 text-white text-center focus:outline-none focus:border-cyan-500 transition-colors text-sm sm:text-base font-mono text-lg"
+                placeholder="00"
               />
             </div>
           ))}

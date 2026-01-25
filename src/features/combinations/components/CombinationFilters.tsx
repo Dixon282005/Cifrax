@@ -1,6 +1,8 @@
 import { Search, Filter } from 'lucide-react';
-import { Group } from '../../groups/types';
-import { SortBy } from '../types';
+// IMPORTANTE: Usamos el tipo global en Español
+import { Group } from '@/types/database';
+// Si tienes SortBy definido en el hook, impórtalo, o defínelo aquí mismo para evitar líos:
+type SortBy = 'date' | 'name' | 'date-asc' | 'date-desc'; 
 
 interface CombinationFiltersProps {
   searchTerm: string;
@@ -24,6 +26,7 @@ export function CombinationFilters({
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 sm:p-6 mb-6 sm:mb-8">
       <div className="grid sm:grid-cols-3 gap-4">
+        {/* BUSCADOR */}
         <div className="sm:col-span-2">
           <label className="block text-slate-300 mb-2 text-sm sm:text-base">
             Buscar Combinaciones
@@ -40,6 +43,7 @@ export function CombinationFilters({
           </div>
         </div>
 
+        {/* FILTRO DE GRUPO */}
         <div>
           <label className="block text-slate-300 mb-2 text-sm sm:text-base">
             Filtrar por Grupo
@@ -54,7 +58,8 @@ export function CombinationFilters({
               <option value="all">Todos los grupos</option>
               {groups.map((group) => (
                 <option key={group.id} value={group.id}>
-                  {group.name}
+                  {/* CORRECCIÓN: Usamos group.nombre (Español) */}
+                  {group.nombre}
                 </option>
               ))}
             </select>
@@ -62,12 +67,13 @@ export function CombinationFilters({
         </div>
       </div>
 
+      {/* ORDENAMIENTO */}
       <div className="mt-4 flex flex-wrap items-center gap-3 sm:gap-4">
         <span className="text-slate-400 text-sm sm:text-base">Ordenar por:</span>
         <button
           onClick={() => onSortByChange('date')}
           className={`px-4 py-2 rounded-lg transition-colors text-sm sm:text-base ${
-            sortBy === 'date' 
+            sortBy === 'date' || sortBy === 'date-desc'
               ? 'bg-cyan-500 text-white' 
               : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
           }`}

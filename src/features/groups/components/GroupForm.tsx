@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Save, X } from 'lucide-react';
-import { GROUP_COLORS } from '../types';
+import { GROUP_COLORS } from '@/types/database';
 import { Button } from '../../../components/shared/Button';
 
 interface GroupFormProps {

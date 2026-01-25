@@ -1,52 +1,13 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Mail, KeyRound, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
-import { Logo } from '@/components/shared/Logo';
-import { Button } from '@/components/shared/Button';
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
+import { AuthForm } from "@/features/auth/components/AuthForm";
+import { Logo } from "@/components/shared/Logo";
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-
-    if (!email || !password) {
-      setError('Por favor completa todos los campos');
-      return;
-    }
-
-    if (email === 'admin@cifrax.com') {
-      if (password === 'admin123') {
-        localStorage.setItem('cifrax_user', email);
-        localStorage.setItem('cifrax_role', 'admin');
-        router.push('/admin');
-        return;
-      } else {
-        setError('Contraseña de administrador incorrecta');
-        return;
-      }
-    }
-
-    if (password.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres');
-      return;
-    }
-
-    localStorage.setItem('cifrax_user', email);
-    localStorage.setItem('cifrax_role', 'user');
-    router.push('/dashboard');
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-slate-950">
       <div className="w-full max-w-md">
+        {/* Botón de volver (UI de la página) */}
         <Link
           href="/"
           className="flex items-center gap-2 text-slate-400 hover:text-white mb-8 transition-colors"
@@ -55,71 +16,15 @@ export default function LoginPage() {
           Volver
         </Link>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-8">
-          <div className="flex items-center justify-center mb-8">
-            <Logo size="md" />
-          </div>
-
-          <h2 className="text-white text-3xl text-center mb-2">
-            Iniciar Sesión
-          </h2>
-          <p className="text-slate-400 text-center mb-8">
-            Accede a tus combinaciones guardadas siempre que quieras
-          </p>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-slate-300 mb-2">
-                Correo Electrónico
-              </label>
-              <div className="relative">
-                <Mail className="size-5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
-                  placeholder="tu@email.com"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-slate-300 mb-2">
-                Contraseña
-              </label>
-              <div className="relative">
-                <KeyRound className="size-5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors"
-                  placeholder="••••••••"
-                />
-              </div>
-            </div>
-
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-red-400">
-                {error}
-              </div>
-            )}
-
-            <Button type="submit" variant="primary" fullWidth>
-              Iniciar Sesión
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <Link
-              href="/register"
-              className="text-slate-400 hover:text-cyan-400 transition-colors"
-            >
-              ¿No tienes cuenta? Regístrate
-            </Link>
-          </div>
+        {/* Logo (Opcional: puedes ponerlo aquí o dentro del AuthForm) */}
+        <div className="flex justify-center mb-6">
+          <Logo size="md" />
         </div>
+
+        {/* EL COMPONENTE INTELIGENTE QUE CONECTA CON SUPABASE */}
+        {/* Aquí es donde ocurre la magia real */}
+        <AuthForm mode="login" />
+        
       </div>
     </div>
   );

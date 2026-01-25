@@ -1,48 +1,48 @@
 import { useState, useEffect } from 'react';
-import { Group } from '../types';
+import { Group } from '@/types/database';
+import { createGroup, deleteGroup } from '../actions/groups';
 
-export function useGroups(userEmail: string) {
-  const [groups, setGroups] = useState<Group[]>([]);
+export function useGroups(initialData: Group[]) {
+  const [groups, setGroups] = useState<Group[]>(initialData);
+  const [isPending, setIsPending] = useState(false);
 
-  // Cargar grupos del localStorage
+  // Sincronizar cuando el servidor mande nueva data (revalidatePath)
   useEffect(() => {
-    const storedGroups = localStorage.getItem(`cifrax_groups_${userEmail}`);
-    if (storedGroups) {
-      setGroups(JSON.parse(storedGroups));
+    setGroups(initialData);
+  }, [initialData]);
+
+  // --- AGREGAR GRUPO ---
+  const addGroup = async (name: string, color: string) => {
+    setIsPending(true);
+    const result = await createGroup(name, color);
+    
+    if (!result.success) {
+      alert("Error al crear grupo: " + result.error);
     }
-  }, [userEmail]);
-
-  // Guardar grupos
-  const saveGroups = (newGroups: Group[]) => {
-    setGroups(newGroups);
-    localStorage.setItem(`cifrax_groups_${userEmail}`, JSON.stringify(newGroups));
+    // No necesitamos actualizar el estado manual porque 
+    // revalidatePath hará que initialData cambie
+    setIsPending(false);
+    return result;
   };
 
-  const addGroup = (name: string, color: string) => {
-    const newGroup: Group = {
-      id: Date.now().toString(),
-      name,
-      color
-    };
-    saveGroups([...groups, newGroup]);
-  };
-
-  const deleteGroup = (groupId: string) => {
-    if (confirm('¿Estás seguro de eliminar este grupo? Las combinaciones no se eliminarán.')) {
-      saveGroups(groups.filter(g => g.id !== groupId));
-      return true;
+  // --- ELIMINAR GRUPO ---
+  const removeGroup = async (id: number | string) => {
+    if (confirm("¿Estás seguro de eliminar este grupo?")) {
+      setIsPending(true);
+      const result = await deleteGroup(id);
+      
+      if (!result.success) {
+        alert("Error al eliminar: " + result.error);
+      }
+      setIsPending(false);
+      return result;
     }
-    return false;
-  };
-
-  const getGroupById = (groupId?: string) => {
-    return groups.find(g => g.id === groupId);
   };
 
   return {
     groups,
     addGroup,
-    deleteGroup,
-    getGroupById
+    removeGroup,
+    isPending
   };
 }
