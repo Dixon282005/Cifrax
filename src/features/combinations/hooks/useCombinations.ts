@@ -76,22 +76,37 @@ export function useCombinations(initialData: Combination[]) {
     setCombinations(updatedCombinations);
   };
 
-  // --- LÓGICA DE FILTRADO Y ORDENAMIENTO (CORREGIDA) ---
+  // --- LÓGICA DE FILTRADO Y ORDENAMIENTO (¡AQUÍ ESTÁ LA MAGIA!) ---
   const filteredCombinations = useMemo(() => {
     return combinations
       .filter(c => {
-        // 1. Filtro por Texto: Usamos c.titulo y c.notas
-        const matchesSearch = 
-          (c.titulo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (c.notas || '').toLowerCase().includes(searchTerm.toLowerCase());
+        const term = searchTerm.toLowerCase().trim();
+        
+        // Si no hay búsqueda, solo aplicamos el filtro de grupo
+        if (!term) return filterGroup === 'all' || String(c.group_id) === filterGroup;
 
-        // 2. Filtro por Grupo: Usamos c.group_id
+        // 1. Búsqueda en TEXTO (Título y Notas)
+        const matchesText = 
+          (c.titulo || '').toLowerCase().includes(term) ||
+          (c.notas || '').toLowerCase().includes(term);
+
+        // 2. Búsqueda en NÚMEROS (Lo que pidió la profe)
+        // Buscamos si alguno de los números del array contiene el término buscado
+        const matchesNumbers = c.numeros?.some(num => {
+          // Convertimos el número a string. Ej: 5 -> "5" y "05" para asegurar que lo encuentre
+          const numStr = String(num); 
+          const paddedStr = String(num).padStart(2, '0'); // Por si busca "05"
+          return numStr.includes(term) || paddedStr.includes(term);
+        });
+
+        // 3. Filtro de Grupo
         const matchesGroup = filterGroup === 'all' || String(c.group_id) === filterGroup;
 
-        return matchesSearch && matchesGroup;
+        // Resultado final: (Coincide Texto O Coincide Número) Y (Coincide Grupo)
+        return (matchesText || matchesNumbers) && matchesGroup;
       })
       .sort((a, b) => {
-        // 3. Ordenamiento: Usamos created_at y titulo
+        // Ordenamiento
         if (sortBy === 'date' || sortBy === 'date-desc') {
           return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
         } 

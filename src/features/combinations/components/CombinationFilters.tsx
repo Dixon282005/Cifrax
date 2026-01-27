@@ -1,7 +1,8 @@
 import { Search, Filter } from 'lucide-react';
 // IMPORTANTE: Usamos el tipo global en Español
 import { Group } from '@/types/database';
-// Si tienes SortBy definido en el hook, impórtalo, o defínelo aquí mismo para evitar líos:
+
+// Si tienes SortBy definido en el hook, impórtalo, o defínelo aquí mismo:
 type SortBy = 'date' | 'name' | 'date-asc' | 'date-desc'; 
 
 interface CombinationFiltersProps {
@@ -38,7 +39,8 @@ export function CombinationFilters({
               value={searchTerm}
               onChange={(e) => onSearchChange(e.target.value)}
               className="w-full bg-slate-800 border border-slate-700 rounded-lg pl-10 pr-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 transition-colors text-sm sm:text-base"
-              placeholder="Buscar por nombre o notas..."
+              // CAMBIO AQUÍ: Actualizamos el texto para que sea obvio que busca números
+              placeholder="Buscar por nombre, notas o números (ej: 72)..."
             />
           </div>
         </div>
@@ -58,7 +60,7 @@ export function CombinationFilters({
               <option value="all">Todos los grupos</option>
               {groups.map((group) => (
                 <option key={group.id} value={group.id}>
-                  {/* CORRECCIÓN: Usamos group.nombre (Español) */}
+                  {/* Usamos group.nombre (Español) */}
                   {group.nombre}
                 </option>
               ))}
