@@ -20,7 +20,7 @@ export function useCombinations(initialData: Combination[]) {
   // --- ACCIÓN: AGREGAR (CREATE) ---
   const addCombination = async (
     name: string,
-    pairs: number[], // Cambiado a number[] para ser flexible
+    pairs: number[], 
     group: string,
     notes: string
   ) => {
@@ -38,7 +38,7 @@ export function useCombinations(initialData: Combination[]) {
 
   // --- ACCIÓN: EDITAR (UPDATE) ---
   const editCombination = async (
-    id: string | number, // Aceptamos ambos para seguridad
+    id: string | number, 
     name: string,
     pairs: number[],
     group: string,
@@ -69,41 +69,47 @@ export function useCombinations(initialData: Combination[]) {
 
   // --- ACCIÓN: REMOVER GRUPO (Visual) ---
   const removeGroupFromCombinations = (groupId: string) => {
-    // Comparamos String vs String para evitar errores de tipo
     const updatedCombinations = combinations.map(c => 
       String(c.group_id) === groupId ? { ...c, group_id: null } : c
     );
     setCombinations(updatedCombinations);
   };
 
-  // --- LÓGICA DE FILTRADO Y ORDENAMIENTO (¡AQUÍ ESTÁ LA MAGIA!) ---
+  // --- LÓGICA DE FILTRADO INTELIGENTE (Tokenizada) ---
+  // Esta es la parte que cambia para soportar búsquedas como "72 15"
   const filteredCombinations = useMemo(() => {
     return combinations
       .filter(c => {
-        const term = searchTerm.toLowerCase().trim();
+        const rawTerm = searchTerm.toLowerCase().trim();
         
-        // Si no hay búsqueda, solo aplicamos el filtro de grupo
-        if (!term) return filterGroup === 'all' || String(c.group_id) === filterGroup;
-
-        // 1. Búsqueda en TEXTO (Título y Notas)
-        const matchesText = 
-          (c.titulo || '').toLowerCase().includes(term) ||
-          (c.notas || '').toLowerCase().includes(term);
-
-        // 2. Búsqueda en NÚMEROS (Lo que pidió la profe)
-        // Buscamos si alguno de los números del array contiene el término buscado
-        const matchesNumbers = c.numeros?.some(num => {
-          // Convertimos el número a string. Ej: 5 -> "5" y "05" para asegurar que lo encuentre
-          const numStr = String(num); 
-          const paddedStr = String(num).padStart(2, '0'); // Por si busca "05"
-          return numStr.includes(term) || paddedStr.includes(term);
-        });
-
-        // 3. Filtro de Grupo
+        // 1. Filtro de Grupo (Siempre se aplica primero para optimizar)
         const matchesGroup = filterGroup === 'all' || String(c.group_id) === filterGroup;
+        if (!matchesGroup) return false;
 
-        // Resultado final: (Coincide Texto O Coincide Número) Y (Coincide Grupo)
-        return (matchesText || matchesNumbers) && matchesGroup;
+        // Si no hay búsqueda de texto, devolvemos true (solo filtramos por grupo)
+        if (!rawTerm) return true;
+
+        // 2. TOKENIZACIÓN: Dividimos lo que escribe la profe por espacios
+        // Ejemplo: "caja 72" se convierte en ["caja", "72"]
+        const tokens = rawTerm.split(/\s+/).filter(t => t.length > 0);
+
+        // 3. Lógica AND: CADA palabra/número escrito debe coincidir
+        return tokens.every(token => {
+          // A. ¿Está en el Texto (Título o Notas)?
+          const inText = 
+            (c.titulo || '').toLowerCase().includes(token) ||
+            (c.notas || '').toLowerCase().includes(token);
+          
+          // B. ¿Está en los Números?
+          const inNumbers = c.numeros?.some(num => {
+            const strNum = String(num);
+            const paddedNum = strNum.padStart(2, '0'); // Para encontrar "05" si escribe "05"
+            return strNum.includes(token) || paddedNum.includes(token);
+          });
+
+          // Si el token está en el texto O en los números, pasa esta prueba
+          return inText || inNumbers;
+        });
       })
       .sort((a, b) => {
         // Ordenamiento
@@ -114,7 +120,6 @@ export function useCombinations(initialData: Combination[]) {
           return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
         }
         else {
-          // Orden por Nombre (titulo)
           return (a.titulo || '').localeCompare(b.titulo || '');
         }
       });
